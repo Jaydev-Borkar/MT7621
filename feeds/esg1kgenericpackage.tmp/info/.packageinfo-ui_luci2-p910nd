@@ -1,0 +1,21 @@
+Source-Makefile: feeds/esg1kgenericpackage/ui/luci2-p910nd/Makefile
+
+Package: luci2-p910nd
+Default: y
+Version: 1
+Depends: +libc +USE_GLIBC:librt +USE_GLIBC:libpthread luci2 p910nd
+Conflicts: 
+Menu-Depends: 
+Provides: 
+Section: luci2
+Category: LuCI2
+Repository: base
+Title: LuCI2 p910nd module
+Maintainer: 
+Source: 
+Type: ipkg
+Description:   LuCI2 module for p910nd printer daemon management
+
+@@
+
+
