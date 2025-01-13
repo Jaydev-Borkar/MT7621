@@ -1,5 +1,0 @@
-config dropbear 'root'
-       option RootPasswordAuth 'on'
-       option PasswordAuth 'on'
-       option RootLogin '0'
-       option Port '52434'

@@ -1,5 +1,0 @@
- 
-config setmacid 'setmacid'
-    option utility "Set MAC ID"
-    option action "SET"
-    option inputs "0"

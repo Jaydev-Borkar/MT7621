@@ -1,4 +1,0 @@
-numberOfDIOpin=0
-numberOfAIpin=0
-numberOftempSensor=0
-numberOfDIOTraps=0

@@ -1,9 +1,0 @@
-#!/bin/sh
-
-[ "${ACTION}" = "remove" -a -n "$PRODUCT" -a -n "$DEVICENAME" -a \( "$DEVICENAME" = "1-2" \) ] || exit 0
-
-. /lib/functions.sh
-
-rm /dev/CWAN2*
-
-/root/InterfaceManager/script/CallUbusInterfaceManager.sh "disable" "CWAN2" &

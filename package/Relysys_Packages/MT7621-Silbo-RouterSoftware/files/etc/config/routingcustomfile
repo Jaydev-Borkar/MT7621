@@ -1,3 +1,0 @@
-config routingcustomfile uploadfile
-   option upload_custom_file '0'
-

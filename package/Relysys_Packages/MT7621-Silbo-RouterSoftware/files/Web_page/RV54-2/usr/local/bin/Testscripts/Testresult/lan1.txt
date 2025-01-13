@@ -1,5 +1,0 @@
-[Wed Jan  3 21:03:06 IST 2024] LAN1 port speed=FAIL
-[Wed Jan  3 21:03:06 IST 2024] LAN2 port speed=FAIL
-[Wed Jan  3 21:03:06 IST 2024] LAN3 port speed=FAIL
-[Wed Jan  3 21:03:06 IST 2024] LAN4 port speed=FAIL
-[Wed Jan  3 21:03:06 IST 2024] WAN port speed=FAIL

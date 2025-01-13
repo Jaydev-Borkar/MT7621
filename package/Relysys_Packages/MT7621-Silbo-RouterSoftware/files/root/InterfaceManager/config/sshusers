@@ -1,5 +1,0 @@
-
-config dropbear admin
-	option enable '1'
-	option Port '44'
-	option SSHKeepAlive '300'

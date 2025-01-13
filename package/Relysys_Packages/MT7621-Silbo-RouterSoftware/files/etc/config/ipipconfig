@@ -1,4 +1,0 @@
-
-config ipipconfig 'IPIPtunnel'
-	option tunnelname 'IPIPtunnel'
-

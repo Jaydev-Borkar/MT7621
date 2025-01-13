@@ -1,6 +1,0 @@
- : WAN is down
-"$now" Restarting the board
-Sun May 17 12:19:22 IST 2020 : WAN is down
-"$now" Restarting the board
-Sun May 17 12:21:24 IST 2020 : WAN is down
-Sun May 17 12:21:24 IST 2020 : Restarting the board

@@ -1,8 +1,0 @@
-
-config interface 'board'
-       option serialnum '1'
-       option pcbnum '250-00096-03'
-       option FirmwareVer '1.08'
-       option ApplicationSwVer '1.08'
-       option imei '9989389389'
-
