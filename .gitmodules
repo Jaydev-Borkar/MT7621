@@ -1,0 +1,18 @@
+[submodule "feeds/esg1kgenericpackage"]
+	path = feeds/esg1kgenericpackage
+	url = https://github.com/Jaydev-Borkar/MT7621
+[submodule "feeds/luci"]
+	path = feeds/luci
+	url = https://github.com/Jaydev-Borkar/MT7621
+[submodule "feeds/openwisp"]
+	path = feeds/openwisp
+	url = https://github.com/Jaydev-Borkar/MT7621
+[submodule "feeds/packages"]
+	path = feeds/packages
+	url = https://github.com/Jaydev-Borkar/MT7621
+[submodule "feeds/routing"]
+	path = feeds/routing
+	url = https://github.com/Jaydev-Borkar/MT7621
+[submodule "feeds/telephony"]
+	path = feeds/telephony
+	url = https://github.com/Jaydev-Borkar/MT7621
