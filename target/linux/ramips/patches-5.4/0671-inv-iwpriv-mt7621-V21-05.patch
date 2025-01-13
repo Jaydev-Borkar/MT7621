@@ -1,0 +1,11 @@
+--- a/net/wireless/wext-core.c	2023-11-29 12:58:33.496171000 +0530
++++ b/net/wireless/wext-core.c	2023-11-29 12:30:45.406639000 +0530
+@@ -956,6 +956,8 @@
+ 		else if (private)
+ 			return private(dev, iwr, cmd, info, handler);
+ 	}
++	        if (dev->netdev_ops->ndo_do_ioctl)
++                return dev->netdev_ops->ndo_do_ioctl(dev, (struct ifreq *)iwr, cmd);
+ 	return -EOPNOTSUPP;
+ }
+ 

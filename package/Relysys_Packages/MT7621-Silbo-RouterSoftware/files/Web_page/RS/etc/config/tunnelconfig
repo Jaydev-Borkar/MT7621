@@ -1,0 +1,28 @@
+
+config genericconfig 'general'
+	option enablegregeneral '0'
+	option enableipsecgeneral '0'
+	option openvpnrunning '0'
+	option enablepptp '0'
+	option enablegre '1'
+
+config pptp 'pptp'
+	option pptpserver 'PL226.vpnbook.com'
+	option pptpuser 'vpnbook'
+	option pptppassword '4dK5esN'
+
+config tunnelconfig 'gretunnel'
+	option tunnelname 'gretunnel'
+	option localexternalIP '10.1.1.121'
+	option remoteexternalIP '10.1.1.141'
+	option peertunnelIP '10.0.1.1'
+	option localtunnelIP '10.0.1.2'
+	option localnetmask '255.255.255.0'
+	option remoteip '192.168.2.0/24'
+	option interfacetype 'EWAN3'
+	option mtu '1476'
+	option ttl '255'
+	option tunnelkey '12345678'
+	option enablekeepalive '1'
+	option aliveinterval '10'
+

@@ -1,0 +1,5 @@
+
+config update 'tr'
+	option ssid 'tr0691234'
+	option passwd '12345678'
+

@@ -1,0 +1,29 @@
+{
+    "routingcustomfile": {
+        "description": "Custom File",
+        "read": {
+			"ubus" : {
+                "rpc-updatebgpconfig":[
+                "configure"
+                   
+                ],
+            },
+            
+            "uci": [
+                "routingcustomfile",
+                
+                
+            ] 
+            
+        },
+        
+       "write": {
+            "uci": [
+               "routingcustomfile",
+             
+                
+            ]
+        } 
+        
+    }
+}

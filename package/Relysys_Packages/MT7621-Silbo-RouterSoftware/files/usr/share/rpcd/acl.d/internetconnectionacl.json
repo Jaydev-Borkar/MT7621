@@ -1,0 +1,23 @@
+{
+    "internetconnection": {
+        "description": "WAN Configuration",
+        "read": {
+			"ubus" : {
+                "rpc-validatepriority":[
+                "configure"
+                   
+                ]
+            },
+            "uci": [
+                "mwan3config",
+                
+            ]
+        },
+        "write": {
+            "uci": [
+               "mwan3config",
+                
+            ]
+        }
+    }
+}

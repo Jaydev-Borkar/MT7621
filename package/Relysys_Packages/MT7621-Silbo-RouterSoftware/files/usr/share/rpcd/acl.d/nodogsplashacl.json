@@ -1,0 +1,30 @@
+
+{
+    "nodogsplash": {
+        "description": "Captive Portal",
+        "read": {
+                        "ubus" : {
+                "rpc-nodogsplash":[
+                "configure"
+                ]
+            },
+            "uci": [
+                "nodogsplash",
+
+            ]
+
+        },
+        "write": {
+                        "ubus" : {
+                "rpc-nodogsplash":[
+                "configure"
+
+                ]
+            },
+            "uci": [
+               "nodogsplash",
+
+            ]
+        }
+    }
+}

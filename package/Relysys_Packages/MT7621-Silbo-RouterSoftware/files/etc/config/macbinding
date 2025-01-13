@@ -1,0 +1,5 @@
+
+config macbinding 'MAC1'
+	option name 'MAC1'
+	option macaddress '48:9e:bd:da:45:91'
+	option ipaddress '192.168.10.55'

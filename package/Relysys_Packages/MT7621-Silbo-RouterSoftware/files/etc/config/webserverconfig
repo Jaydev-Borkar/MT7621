@@ -1,0 +1,13 @@
+config webserverconfig 'webserverconfig'
+	option enablentpsync '1'
+	option ntpsyncinterval '15'
+	option enable_http '1'
+	option http_port '80'
+	option enable_https '1'
+	option https_port '443'
+	option rfc1918_filter '1'
+	list ntpserver '0.openwrt.pool.ntp.org'
+	list ntpserver '1.openwrt.pool.ntp.org'
+	list ntpserver '2.openwrt.pool.ntp.org'
+	list ntpserver '3.openwrt.pool.ntp.org'
+

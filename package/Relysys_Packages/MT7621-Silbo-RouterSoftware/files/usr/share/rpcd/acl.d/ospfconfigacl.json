@@ -1,0 +1,36 @@
+{
+    "ospfconfig": {
+        "description": "OSPF",
+        "read": {
+			"ubus" : {
+				
+				"network.interface":[
+				"dump"
+				],
+				
+                "rpc-updateospfconfig":[
+                "configure"
+                   
+                ],
+                
+                 "rpc-updateospfstatus":[
+                "configure"
+                   
+                ],
+            },
+            "uci": [
+                "ospfconfig",
+                
+                
+            ]
+            
+        },
+        "write": {
+            "uci": [
+               "ospfconfig",
+             
+                
+            ]
+        }
+    }
+}

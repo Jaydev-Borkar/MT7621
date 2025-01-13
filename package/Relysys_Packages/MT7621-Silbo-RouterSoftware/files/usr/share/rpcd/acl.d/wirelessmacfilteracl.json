@@ -1,0 +1,24 @@
+{
+    "wirelessmacfilter": {
+        "description": "Mac Address Configuration",
+        "read": {
+			"ubus" : {
+                "rpc-updatewirelessmacfilter":[
+                "configure"
+                   
+                ]
+            },
+            "uci": [
+                "wirelessmacfilter",
+                
+            ]
+            
+        },
+        "write": {
+            "uci": [
+               "wirelessmacfilter",
+                
+            ]
+        }
+    }
+}

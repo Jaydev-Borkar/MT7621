@@ -1,0 +1,41 @@
+From: B.Sourab (Invendis)
+Date: 14 Jun 2022
+Subject: [PATCH] inv-pthread-once-error: patch for undefined reference to `pthread_once' error.
+
+--- a/scripts/Makefile
++++ b/scripts/Makefile
+@@ -10,8 +10,16 @@
+ 
+ HOST_EXTRACFLAGS += -I$(srctree)/tools/include
+ 
+-CRYPTO_LIBS = $(shell pkg-config --libs libcrypto 2> /dev/null || echo -lcrypto)
+-CRYPTO_CFLAGS = $(shell pkg-config --cflags libcrypto 2> /dev/null)
++#-----------------------------------------------------------------------------------
++#Patch for undefined reference to `pthread_once' error.
++
++#CRYPTO_LIBS = $(shell pkg-config --libs libcrypto 2> /dev/null || echo -lcrypto)
++#CRYPTO_CFLAGS = $(shell pkg-config --cflags libcrypto 2> /dev/null)
++
++CRYPTO_LIBS = $(shell pkg-config --libs libcrypto lpthread lssl 2> /dev/null || echo -lcrypto -lpthread -lssl)
++CRYPTO_CFLAGS = $(shell pkg-config --cflags libcrypto lssl 2> /dev/null)
++
++#-----------------------------------------------------------------------------------
+ 
+ hostprogs-$(CONFIG_BUILD_BIN2C)  += bin2c
+ hostprogs-$(CONFIG_KALLSYMS)     += kallsyms
+@@ -29,7 +37,14 @@
+ HOSTCFLAGS_sign-file.o = $(CRYPTO_CFLAGS)
+ HOSTLDLIBS_sign-file = $(CRYPTO_LIBS)
+ HOSTCFLAGS_extract-cert.o = $(CRYPTO_CFLAGS)
+-HOSTLDLIBS_extract-cert = $(CRYPTO_LIBS)
++
++#-----------------------------------------------------------------------------------
++#Patch for undefined reference to `pthread_once' error.
++
++#HOSTLDLIBS_extract-cert = $(CRYPTO_LIBS)
++HOSTLDLIBS_extract-cert= -lcrypto -lpthread -lssl
++HOSTLOADLIBES_extract-cert =-L /usr/local/lib/ -lcrypto -lssl
++#-----------------------------------------------------------------------------------
+ 
+ always		:= $(hostprogs-y) $(hostprogs-m)
+ 

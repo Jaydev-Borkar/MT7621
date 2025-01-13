@@ -1,0 +1,98 @@
+#!/bin/sh
+
+. /usr/share/libubox/jshn.sh
+. /lib/functions.sh
+
+factoryresetscript="/root/InterfaceManager/script/Restore.sh"
+ImportedBoardModel="/tmp/etc/config/system"
+ConfigBoardModel="/etc/config/system"
+case "$1" in
+    list)
+        echo '{"rebootsys":{},"testarchive":{}}'
+        ;;
+    call)
+        case "$2" in
+                                        
+               rebootsys)
+						    respreboot=$(/root/usrRPC/script/Board_Recycle_12V_Script.sh)
+						    if [ "$?" -ne 0 ]
+							then
+								echo "{\"code\":1,\"output\":\"Reboot failure!!\"}"
+							else
+								echo "{\"code\":0,\"output\":\"Reboot Success!!\"}"
+							fi
+						    ;;
+							    
+		testarchive)     
+				          
+                #extracting tar file in tmp folder
+                #RetMsg=$(tar -zxv -f "${ArchivedFileWithPath}" -C "${ArchiveDLPath}" 2>&1)
+                 config_load importexportconfig
+                 config_get enableretainboardconfig "importexportconfig" enableretainboardconfig
+		a=$(mkdir /tmp/etc 2>&1) 
+		a=$(mkdir /tmp/etc/config 2>&1)
+
+		/bin/import_utility
+						
+	            ImportedBoardModelValue=$(grep -w "option model" ${ImportedBoardModel})
+	            ConfigBoardModelValue=$(grep -w "option model" ${ConfigBoardModel})
+			echo "retainconfig $enableretainboardconfig "
+			echo "$ImportedBoardModelValue $ConfigBoardModelValue" 
+	            	            	
+				if [ "$enableretainboardconfig" = "1" ] && [ "$ImportedBoardModelValue" = "$ConfigBoardModelValue" ]
+				then
+				 
+				  rm -f /tmp/etc/config/AddiotionalCommands
+				  rm -f /tmp/etc/config/applist_config
+				  rm -f /tmp/etc/config/boardconfig
+				  rm -f /tmp/etc/config/boardconfigfile
+				  rm -f /tmp/etc/config/DiagnosticMiscUtilities
+				  rm -f /tmp/etc/config/etherwake
+				  rm -f /tmp/etc/config/fstab
+				  rm -f /tmp/etc/config/hd-idle
+				  rm -f /tmp/etc/config/importexportconfig
+				  rm -f /tmp/etc/config/ltemodulefirmwareupgrade
+				  rm -f /tmp/etc/config/luci
+				  rm -f /tmp/etc/passwd
+				  rm -f /tmp/etc/config/rpcd
+				  rm -f /tmp/etc/config/samba
+				  rm -f /tmp/etc/config/setserialnumber
+				  rm -f /tmp/etc/config/system
+				  rm -f /tmp/etc/config/systemgpio
+				  rm -f /tmp/etc/shadow
+				  rm -f /tmp/etc/config/testapp
+				  rm -f /tmp/etc/config/testappenable
+				  rm -f /tmp/etc/config/ubootenv
+				
+				rm -f /tmp/backup.txt
+				cp -r /tmp/etc/* /etc
+			Serialnum=$(uci get boardconfig.board.serialnum)
+						
+			#uci commit network
+			
+			sh /root/InterfaceManager/script/RemoveMacAddress.sh			
+			sh /bin/UpdateWanConfig.sh
+			sh /bin/UpdateConfigurationsMaintenanceReboot updatemaintenancereboot
+			sh /bin/customfirewallrules.sh
+			sh /root/InterfaceManager/script/features/url_filtering/urlblocklist.sh
+			sh /root/InterfaceManager/script/features/mac_binding/UpdateMacConfig.sh
+			sh /bin/routing.sh
+			sh /root/InterfaceManager/script/IpSecStart.sh
+			sh /bin/UpdateWebserver.sh
+			sh /bin/UpdateConfigurationsRouterApp
+			sh /bin/macidblocking.sh
+			sleep 20
+			elif [ "$ImportedBoardModelValue" != "$ConfigBoardModelValue"  ]
+				then
+				    echo "{\"code\":1,\"output\":\"Invalid Import archieve\"}"
+				fi			   
+                ;;			    
+							    
+                *)
+								echo '{"code":"1","output":"invalid method"}'
+                    exit 1
+        esac #appmanager method
+        ;;
+esac # ubus method
+
+exit 0

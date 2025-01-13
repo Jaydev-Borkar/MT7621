@@ -1,0 +1,5 @@
+
+config interface 'board'
+	option pcbnum '250-00129-01'
+	option FirmwareVer '1.09'
+	option ApplicationSwVer '1.09'

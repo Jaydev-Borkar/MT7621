@@ -1,0 +1,126 @@
+--- a/drivers/usb/serial/option.c
++++ b/drivers/usb/serial/option.c
+@@ -253,12 +253,15 @@
+ #define QUECTEL_PRODUCT_BG96			0x0296
+ #define QUECTEL_PRODUCT_EP06			0x0306
+ #define QUECTEL_PRODUCT_EM05G			0x030a
++#define QUECTEL_PRODUCT_EM05_G			0x030e
+ #define QUECTEL_PRODUCT_EM060K			0x030b
+ #define QUECTEL_PRODUCT_EM12			0x0512
+ #define QUECTEL_PRODUCT_RM500Q			0x0800
++#define QUECTEL_PRODUCT_RM500U			0x0900
+ #define QUECTEL_PRODUCT_RM520N			0x0801
+ #define QUECTEL_PRODUCT_EC200S_CN		0x6002
+ #define QUECTEL_PRODUCT_EC200T			0x6026
++#define QUECTEL_PRODUCT_EC200A			0x6005
+ #define QUECTEL_PRODUCT_RM500K			0x7001
+ 
+ #define CMOTECH_VENDOR_ID			0x16d8
+@@ -1148,6 +1151,8 @@
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_EP06, 0xff, 0, 0) },
+ 	{ USB_DEVICE_INTERFACE_CLASS(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_EM05G, 0xff),
+ 	  .driver_info = RSVD(6) | ZLP },
++	{ USB_DEVICE_INTERFACE_CLASS(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_EM05_G, 0xff),
++	  .driver_info = RSVD(6) | ZLP },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_EM060K, 0xff, 0x00, 0x40) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_EM060K, 0xff, 0xff, 0x30) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_EM060K, 0xff, 0xff, 0x40) },
+@@ -1159,14 +1164,20 @@
+ 	{ USB_DEVICE_INTERFACE_CLASS(QUECTEL_VENDOR_ID, 0x0700, 0xff), /* BG95 */
+ 	  .driver_info = RSVD(3) | ZLP },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500Q, 0xff, 0xff, 0x30) },
++	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500Q, 0xff, 0, 0x40) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500Q, 0xff, 0, 0) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500Q, 0xff, 0xff, 0x10),
+ 	  .driver_info = ZLP },
++	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500U, 0xff, 0xff, 0x30) },
++	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500U, 0xff, 0, 0) },
++	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500U, 0xff, 0xff, 0x10),
++	  .driver_info = ZLP },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM520N, 0xff, 0xff, 0x30) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM520N, 0xff, 0, 0x40) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM520N, 0xff, 0, 0) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_EC200S_CN, 0xff, 0, 0) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_EC200T, 0xff, 0, 0) },
++	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_EC200A, 0xff, 0, 0) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500K, 0xff, 0x00, 0x00) },
+ 
+ 	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_6001) },
+@@ -2187,7 +2198,7 @@
+ static struct usb_serial_driver option_1port_device = {
+ 	.driver = {
+ 		.owner =	THIS_MODULE,
+-		.name =		"option1",
++		.name =		"option",
+ 	},
+ 	.description       = "GSM modem (1-port)",
+ 	.id_table          = option_ids,
+@@ -2211,6 +2222,9 @@
+ #ifdef CONFIG_PM
+ 	.suspend           = usb_wwan_suspend,
+ 	.resume            = usb_wwan_resume,
++#if 1 //Added by Quectel
++	.reset_resume = usb_wwan_resume,
++#endif
+ #endif
+ };
+ 
+@@ -2234,7 +2248,36 @@
+ 	struct usb_interface_descriptor *iface_desc =
+ 				&serial->interface->cur_altsetting->desc;
+ 	unsigned long device_flags = id->driver_info;
++	
++#if 1 //Added by Quectel
++	//Quectel UC20's interface 4 can be used as USB Network device
++	if (serial->dev->descriptor.idVendor == cpu_to_le16(0x05C6) && serial->dev->descriptor.idProduct == cpu_to_le16(0x9003)
++		&& serial->interface->cur_altsetting->desc.bInterfaceNumber >= 4)
++		return -ENODEV;
+ 
++	//Quectel EC20(MDM9215)'s interface 4 can be used as USB Network device
++	if (serial->dev->descriptor.idVendor == cpu_to_le16(0x05C6) && serial->dev->descriptor.idProduct == cpu_to_le16(0x9215)
++		&& serial->interface->cur_altsetting->desc.bInterfaceNumber >= 4)
++		return -ENODEV;
++
++	if (serial->dev->descriptor.idVendor == cpu_to_le16(0x2C7C)) {
++		__u16 idProduct = le16_to_cpu(serial->dev->descriptor.idProduct);
++		struct usb_interface_descriptor *intf = &serial->interface->cur_altsetting->desc;
++
++		if (intf->bInterfaceClass != 0xFF || intf->bInterfaceSubClass == 0x42) {
++			//ECM, RNDIS, NCM, MBIM, ACM, UAC, ADB
++			return -ENODEV;
++		}
++
++		if ((idProduct&0xF000) == 0x0000) {
++			//MDM interface 4 is QMI
++			if (intf->bInterfaceNumber == 4 && intf->bNumEndpoints == 3
++				&& intf->bInterfaceSubClass == 0xFF && intf->bInterfaceProtocol == 0xFF)
++				return -ENODEV;
++		}
++	}
++#endif
++	
+ 	/* Never bind to the CD-Rom emulation interface	*/
+ 	if (iface_desc->bInterfaceClass == USB_CLASS_MASS_STORAGE)
+ 		return -ENODEV;
+--- a/drivers/usb/serial/usb_wwan.c
++++ b/drivers/usb/serial/usb_wwan.c
+@@ -478,6 +478,19 @@
+ 			  usb_sndbulkpipe(serial->dev, endpoint) | dir,
+ 			  buf, len, callback, ctx);
+ 
++#if 1 //Added by Quectel for Zero Packet
++	if (dir == USB_DIR_OUT) {
++		if (serial->dev->descriptor.idVendor == cpu_to_le16(0x05C6) && serial->dev->descriptor.idProduct == cpu_to_le16(0x9090))
++			urb->transfer_flags |= URB_ZERO_PACKET;
++		if (serial->dev->descriptor.idVendor == cpu_to_le16(0x05C6) && serial->dev->descriptor.idProduct == cpu_to_le16(0x9003))
++			urb->transfer_flags |= URB_ZERO_PACKET;
++		if (serial->dev->descriptor.idVendor == cpu_to_le16(0x05C6) && serial->dev->descriptor.idProduct == cpu_to_le16(0x9215))
++			urb->transfer_flags |= URB_ZERO_PACKET;
++		if (serial->dev->descriptor.idVendor == cpu_to_le16(0x2C7C))
++			urb->transfer_flags |= URB_ZERO_PACKET;
++	}
++#endif
++
+ 	if (intfdata->use_zlp && dir == USB_DIR_OUT)
+ 		urb->transfer_flags |= URB_ZERO_PACKET;
+ 
