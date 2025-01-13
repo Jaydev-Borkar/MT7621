@@ -1,0 +1,1166 @@
+#!/bin/sh
+
+[ "${ACTION}" = "add" -a -n "$PRODUCT" -a -n "$DEVICENAME" -a \( "$DEVICENAME" = "1-1" -o "$DEVICENAME" = "2-1" \) ] || exit 0
+
+. /lib/functions.sh
+
+sleep 5
+
+SystemConfigFile="/etc/config/sysconfig"
+SimNumFile="/tmp/simnumfile"
+
+#Setting AddIfaceRunningstatus1 to 1. That is, Donot allow AddInterface to run.
+#For routerlocalpingapp & for AddInterface as well.
+echo "AddIfaceRunningstatus1=1" > /tmp/AddIfaceRunningstatus1
+
+#For qnetdevctl.sh.
+echo "1" > /tmp/qnetdevctl1
+
+LogrotateConfigFile1="/etc/logrotate.d/alllogsmod1"
+Logfile1="/root/ConfigFiles/Logs/all_logs_mod1.txt"
+#Logfile1="/tmp/all_logs_mod1.txt"
+logrotate "$LogrotateConfigFile1"
+
+SmsEnable1=$(uci get sysconfig.smsconfig.smsenable1)
+SmsEnable2=$(uci get sysconfig.smsconfig.smsenable2)
+
+ReadSystemConfigFile(){
+   	config_load "$SystemConfigFile"
+   	config_get CellularOperationModelocal sysconfig CellularOperationMode
+   	config_get EnableCellular sysconfig enablecellular
+}
+
+ReadSystemGpioFile(){
+   	config_load "$SystemGpioConfig"
+   	config_get Modem1PowerGpio gpio modem1powergpio
+	config_get Modem1PowerOnValue gpio modem1poweronvalue
+	config_get Modem1PowerOffValue gpio modem1poweroffvalue
+	config_get Modem2PowerGpio gpio modem2powergpio
+	config_get Modem2PowerOnValue gpio modem2poweronvalue
+	config_get Modem2PowerOffValue gpio modem2poweroffvalue
+}
+
+CWAN1_Symlink(){
+	prefixlocal="CWAN1_"
+	SYMLINKLOCAL="${prefixlocal}$(echo -n ${DEVNAME} | tail -c 1)"
+	rm /dev/${SYMLINKLOCAL}
+}
+
+CWAN2_Symlink(){
+	prefixlocal="CWAN2_"
+	SYMLINKLOCAL="${prefixlocal}$(echo -n ${DEVNAME} | tail -c 1)"
+	rm /dev/${SYMLINKLOCAL}
+}
+
+CWAN1_0_Symlink(){
+	prefixlocal="CWAN1_0_"
+	SYMLINKLOCAL="${prefixlocal}$(echo -n ${DEVNAME} | tail -c 1)"
+	rm /dev/${SYMLINKLOCAL}
+}
+
+CWAN1_1_Symlink(){
+	prefixlocal="CWAN1_1_"
+	SYMLINKLOCAL="${prefixlocal}$(echo -n ${DEVNAME} | tail -c 1)"
+	rm /dev/${SYMLINKLOCAL}
+}
+
+Create_Delete_Symlink(){
+	
+	ACTION="$3"
+	
+	#It doesn't matter if the ttyUSB is 0,1,2 or 3,4,5 or 1,5,7; 
+	#create the symlinks as $name0,$name1,$name2 ... using symlink_value
+	symlink_value="-1"
+	
+	#Find all ttyUSB devices under the usb1/1-1 or usb1/1-2 path, etc.
+	#Use maxdepth to get only single ttyUSB value. Else, we get 2 ttyUSBs each.
+	#Use "sort" as without that the symlinks won't come in proper order.
+	ttyUSBs=$(find $1 -maxdepth 2 -name "ttyUSB*" -type d | sort)
+
+	#Create symlinks for each ttyUSB device in /dev
+	#There is no use creating symlink for the usb paths(path1/path2); 
+	#If we do, we won't be able to use AT commands on the said symlink.
+	#So, we get the basename from the usb paths, find it in /dev and create symlink of the same.
+	for ttyUSB in $ttyUSBs; do
+		ttyName=$(basename $ttyUSB)
+		
+		symlink_value=$(expr "$symlink_value" + 1)
+		logger devpath=$1 action=$ACTION devname=$ttyName symlink=$2$symlink_value type=$HOTPLUG_TYPE
+		
+		if [ "${ACTION}" = "add" ]
+		then
+			
+			echo "<23-CWAN-ADD> Create_Delete_Symlink ACTION=add" >> $Logfile1
+		
+			# Create the symlink
+			ln -sf "/dev/${ttyName}" "/dev/$2${symlink_value}"
+			logger -t modem Symlink from /dev/$ttyName to /dev/$2$symlink_value created
+			echo "<23-CWAN-ADD> Modem Symlink from /dev/$ttyName to /dev/$2$symlink_value created." >> $Logfile1
+		
+		elif [ "${ACTION}" = "remove" ]
+		then
+			
+			echo "<23-CWAN-ADD> Create_Delete_Symlink ACTION=remove" >> $Logfile1
+			
+			rm /dev/$2$symlink_value
+			logger -t modem Symlink /dev/$2$symlink_value removed
+		fi
+	done		
+}
+
+EC25E(){
+	cellularmodem="QuectelEC25E"
+	model="EC25E"
+	Manufacturer="Quectel"
+	protocol="qmi"
+	vendorId="2c7c"
+	productId="0125"
+	#If comport is 3, we get ttyUSB2
+	comport="3"
+	altcomport="2"
+	
+	if [ "$1" = "CWAN2" ]
+	then
+		a="2"
+	else
+		a="1"
+	fi
+
+	uci set modem.$1.manufacturer=$Manufacturer	
+	uci set modem.$1.model=$model	
+	uci set modem.$1.productid=$productId	
+	uci set modem.$1.vendorid=$vendorId	
+	uci set modem.$1.protocol=$protocol	
+	uci set modem.$1.comport=$comport
+	uci set modem.$1.altcomport=$altcomport
+	uci set modem.$1.smsport=$comport	
+	uci set sysconfig.sysconfig.cellularmodem$a=$cellularmodem	
+	uci set sysconfig.bandlock.cellularmodem$a=$cellularmodem	
+	uci set sysconfig.sysconfig.Manufacturer$a=$Manufacturer	
+	uci set sysconfig.sysconfig.model$a=$model	
+	uci set sysconfig.sysconfig.vendorid$a=$vendorId	
+	uci set sysconfig.sysconfig.productid$a=$productId	
+	uci set sysconfig.sysconfig.protocol$a=$protocol	
+	uci set sysconfig.sysconfig.comport$a=$comport	
+	uci set sysconfig.sysconfig.altcomport$a=$altcomport	
+	uci set sysconfig.sysconfig.smsport$a=$comport
+	
+	uci commit systemgpio
+	uci commit modem
+	uci commit sysconfig
+	
+	if [ "${ACTION}" = "add" ]
+	then
+		echo "<23-CWAN-ADD> <EC25E> AddInterface_mod1.sh $1" >> $Logfile1
+		#Setting AddIfaceRunningstatus1 to 0. That is, allow AddInterface to run.
+		echo "AddIfaceRunningstatus1=0" > /tmp/AddIfaceRunningstatus1
+		
+		/root/InterfaceManager/script/AddInterface_mod1.sh $1 &
+		if [ "$SmsEnable1" = "1" ] || [ "SmsEnable2" = "1" ]
+		then
+		/root/InterfaceManager/script/AddSMSCfg.sh $1 &
+ 
+		fi		
+	elif [ "${ACTION}" = "remove" ]
+	then
+		/root/InterfaceManager/script/CallUbusInterfaceManager.sh "disable" $1 &
+	fi
+	
+}
+
+EC200A(){
+	cellularmodem="QuectelEC200A"
+	model="EC200A"
+	Manufacturer="Quectel"
+	protocol="cdcether"
+	vendorId="2c7c"
+	productId="6005"
+	comport="3"
+	altcomport="2"
+	
+	if [ "$1" = "CWAN2" ]
+	then
+		a="2"
+	else
+		a="1"
+	fi
+	
+	uci set modem.$1.manufacturer=$Manufacturer	
+	uci set modem.$1.model=$model	
+	uci set modem.$1.productid=$productId	
+	uci set modem.$1.vendorid=$vendorId	
+	uci set modem.$1.protocol=$protocol	
+	uci set modem.$1.comport=$comport	
+	uci set modem.$1.smsport=$comport
+	uci set modem.$1.altcomport=$altcomport
+	uci set sysconfig.sysconfig.cellularmodem$a=$cellularmodem	
+	uci set sysconfig.bandlock.cellularmodem$a=$cellularmodem	
+	uci set sysconfig.sysconfig.Manufacturer$a=$Manufacturer	
+	uci set sysconfig.sysconfig.model$a=$model	
+	uci set sysconfig.sysconfig.vendorid$a=$vendorId	
+	uci set sysconfig.sysconfig.productid$a=$productId	
+	uci set sysconfig.sysconfig.protocol$a=$protocol
+	uci set sysconfig.sysconfig.comport$a=$comport	
+	uci set sysconfig.sysconfig.smsport$a=$comport
+	uci set sysconfig.sysconfig.altcomport$a=$altcomport
+	
+	uci commit systemgpio
+	uci commit modem
+	uci commit sysconfig
+	
+	if [ "${ACTION}" = "add" ]
+	then
+		echo "<23-CWAN-ADD> <EC200A> AddInterface_mod1.sh $1" >> $Logfile1
+		#Setting AddIfaceRunningstatus1 to 0. That is, allow AddInterface to run.
+		echo "AddIfaceRunningstatus1=0" > /tmp/AddIfaceRunningstatus1
+		
+		/root/InterfaceManager/script/AddInterface_mod1.sh $1 &
+		if [ "$SmsEnable1" = "1" ] || [ "SmsEnable2" = "1" ]
+		then
+		/root/InterfaceManager/script/AddSMSCfg.sh $1 &
+ 
+		fi		
+	elif [ "${ACTION}" = "remove" ]
+	then
+		/root/InterfaceManager/script/CallUbusInterfaceManager.sh "disable" $1 &
+	fi
+}
+
+EM06(){
+	cellularmodem="QuectelEM06"
+	model="EM06"
+	Manufacturer="Quectel"
+	protocol="qmi"
+	vendorId="2c7c"
+	productId="0306"
+	comport="3"
+	altcomport="2"
+	
+	if [ "$1" = "CWAN2" ]
+	then
+		a="2"
+	else
+		a="1"
+	fi
+	
+	uci set modem.$1.manufacturer=$Manufacturer	
+	uci set modem.$1.model=$model	
+	uci set modem.$1.productid=$productId	
+	uci set modem.$1.vendorid=$vendorId	
+	uci set modem.$1.protocol=$protocol	
+	uci set modem.$1.comport=$comport	
+	uci set modem.$1.smsport=$comport
+	uci set modem.$1.altcomport=$altcomport
+	uci set sysconfig.sysconfig.cellularmodem$a=$cellularmodem	
+	uci set sysconfig.bandlock.cellularmodem$a=$cellularmodem	
+	uci set sysconfig.sysconfig.Manufacturer$a=$Manufacturer	
+	uci set sysconfig.sysconfig.model$a=$model	
+	uci set sysconfig.sysconfig.vendorid$a=$vendorId	
+	uci set sysconfig.sysconfig.productid$a=$productId	
+	uci set sysconfig.sysconfig.protocol$a=$protocol
+	uci set sysconfig.sysconfig.comport$a=$comport
+	uci set sysconfig.sysconfig.smsport$a=$comport
+	uci set sysconfig.sysconfig.altcomport$a=$altcomport
+	
+	uci commit systemgpio
+	uci commit modem
+	uci commit sysconfig
+	
+	if [ "${ACTION}" = "add" ]
+	then
+		echo "<23-CWAN-ADD> <EM06> AddInterface_mod1.sh $1" >> $Logfile1
+		#Setting AddIfaceRunningstatus1 to 0. That is, allow AddInterface to run.
+		echo "AddIfaceRunningstatus1=0" > /tmp/AddIfaceRunningstatus1
+		
+		/root/InterfaceManager/script/AddInterface_mod1.sh $1 &
+		if [ "$SmsEnable1" = "1" ] || [ "SmsEnable2" = "1" ]
+		then
+		/root/InterfaceManager/script/AddSMSCfg.sh $1 &
+ 
+		fi		
+	elif [ "${ACTION}" = "remove" ]
+	then
+		/root/InterfaceManager/script/CallUbusInterfaceManager.sh "disable" $1 &
+	fi
+}
+
+#EM05 doesn't have sim2 pin. So, it will not work in single module dual sim.
+EM05G(){
+	cellularmodem="QuectelEM05G"
+	model="EM05G"
+	Manufacturer="Quectel"
+	protocol="qmi"
+	vendorId="2c7c"
+	productId="030e"
+	comport="3"
+	altcomport="2"
+	
+	if [ "$1" = "CWAN2" ]
+	then
+		a="2"
+	else
+		a="1"
+	fi
+	
+	uci set modem.$1.manufacturer=$Manufacturer	
+	uci set modem.$1.model=$model	
+	uci set modem.$1.productid=$productId	
+	uci set modem.$1.vendorid=$vendorId	
+	uci set modem.$1.protocol=$protocol	
+	uci set modem.$1.comport=$comport	
+	uci set modem.$1.smsport=$comport
+	uci set modem.$1.altcomport=$altcomport
+	uci set sysconfig.sysconfig.cellularmodem$a=$cellularmodem	
+	uci set sysconfig.bandlock.cellularmodem$a=$cellularmodem	
+	uci set sysconfig.sysconfig.Manufacturer$a=$Manufacturer	
+	uci set sysconfig.sysconfig.model$a=$model	
+	uci set sysconfig.sysconfig.vendorid$a=$vendorId	
+	uci set sysconfig.sysconfig.productid$a=$productId	
+	uci set sysconfig.sysconfig.protocol$a=$protocol
+	uci set sysconfig.sysconfig.comport$a=$comport
+	uci set sysconfig.sysconfig.smsport$a=$comport
+	uci set sysconfig.sysconfig.altcomport$a=$altcomport
+	
+	uci commit systemgpio
+	uci commit modem
+	uci commit sysconfig
+	
+	if [ "${ACTION}" = "add" ]
+	then
+		echo "<23-CWAN-ADD> <EM05G> AddInterface_mod1.sh $1" >> $Logfile1
+		#Setting AddIfaceRunningstatus1 to 0. That is, allow AddInterface to run.
+		echo "AddIfaceRunningstatus1=0" > /tmp/AddIfaceRunningstatus1
+		
+		/root/InterfaceManager/script/AddInterface_mod1.sh $1 &
+		if [ "$SmsEnable1" = "1" ] || [ "SmsEnable2" = "1" ]
+		then
+		/root/InterfaceManager/script/AddSMSCfg.sh $1 &
+ 
+		fi		
+	elif [ "${ACTION}" = "remove" ]
+	then
+		/root/InterfaceManager/script/CallUbusInterfaceManager.sh "disable" $1 &
+	fi
+}
+
+RM500Q(){
+	cellularmodem="QuectelRM500Q"
+	model="RM500Q"
+	Manufacturer="Quectel"
+	protocol="qmi"
+	vendorId="2c7c"
+	productId="0800"
+	comport="3"
+	altcomport="4"
+	
+	if [ "$1" = "CWAN2" ]
+	then
+		a="2"
+	else
+		a="1"
+	fi
+	
+	uci set modem.$1.manufacturer=$Manufacturer	
+	uci set modem.$1.model=$model	
+	uci set modem.$1.productid=$productId	
+	uci set modem.$1.vendorid=$vendorId	
+	uci set modem.$1.protocol=$protocol	
+	uci set modem.$1.comport=$comport	
+	uci set modem.$1.smsport=$comport
+	uci set modem.$1.altcomport=$altcomport
+	uci set sysconfig.sysconfig.cellularmodem$a=$cellularmodem	
+	uci set sysconfig.bandlock.cellularmodem$a=$cellularmodem	
+	uci set sysconfig.sysconfig.Manufacturer$a=$Manufacturer	
+	uci set sysconfig.sysconfig.model$a=$model	
+	uci set sysconfig.sysconfig.vendorid$a=$vendorId	
+	uci set sysconfig.sysconfig.productid$a=$productId	
+	uci set sysconfig.sysconfig.protocol$a=$protocol
+	uci set sysconfig.sysconfig.comport$a=$comport
+	uci set sysconfig.sysconfig.smsport$a=$comport
+	uci set sysconfig.sysconfig.altcomport$a=$altcomport
+	
+	uci commit systemgpio
+	uci commit modem
+	uci commit sysconfig
+	
+	if [ "${ACTION}" = "add" ]
+	then
+		echo "<23-CWAN-ADD> <RM500Q> AddInterface_mod1.sh $1" >> $Logfile1
+		#Setting AddIfaceRunningstatus1 to 0. That is, allow AddInterface to run.
+		echo "AddIfaceRunningstatus1=0" > /tmp/AddIfaceRunningstatus1
+		
+		/root/InterfaceManager/script/AddInterface_mod1.sh $1 &
+		if [ "$SmsEnable1" = "1" ] || [ "SmsEnable2" = "1" ]
+		then
+		/root/InterfaceManager/script/AddSMSCfg.sh $1 &
+ 
+		fi		
+	elif [ "${ACTION}" = "remove" ]
+	then
+		/root/InterfaceManager/script/CallUbusInterfaceManager.sh "disable" $1 &
+	fi
+}
+
+RM500U(){
+	cellularmodem="QuectelRM500U"
+	model="RM500U"
+	Manufacturer="Quectel"
+	protocol="cdcether"
+	vendorId="2c7c"
+	productId="0900"
+	comport="3"
+	altcomport="4"
+	
+	if [ "$1" = "CWAN2" ]
+	then
+		a="2"
+	else
+		a="1"
+	fi
+	
+	uci set modem.$1.manufacturer=$Manufacturer	
+	uci set modem.$1.model=$model	
+	uci set modem.$1.productid=$productId	
+	uci set modem.$1.vendorid=$vendorId	
+	uci set modem.$1.protocol=$protocol	
+	uci set modem.$1.comport=$comport	
+	uci set modem.$1.smsport=$comport
+	uci set modem.$1.altcomport=$altcomport
+	uci set sysconfig.sysconfig.cellularmodem$a=$cellularmodem	
+	uci set sysconfig.bandlock.cellularmodem$a=$cellularmodem	
+	uci set sysconfig.sysconfig.Manufacturer$a=$Manufacturer	
+	uci set sysconfig.sysconfig.model$a=$model	
+	uci set sysconfig.sysconfig.vendorid$a=$vendorId	
+	uci set sysconfig.sysconfig.productid$a=$productId	
+	uci set sysconfig.sysconfig.protocol$a=$protocol
+	uci set sysconfig.sysconfig.comport$a=$comport
+	uci set sysconfig.sysconfig.smsport$a=$comport
+	uci set sysconfig.sysconfig.altcomport$a=$altcomport
+	
+	uci commit systemgpio
+	uci commit modem
+	uci commit sysconfig
+	
+	if [ "${ACTION}" = "add" ]
+	then
+		echo "<23-CWAN-ADD> <RM500U> AddInterface_mod1.sh $1" >> $Logfile1
+		#Setting AddIfaceRunningstatus1 to 0. That is, allow AddInterface to run.
+		echo "AddIfaceRunningstatus1=0" > /tmp/AddIfaceRunningstatus1
+		
+		/root/InterfaceManager/script/AddInterface_mod1.sh $1 &
+		if [ "$SmsEnable1" = "1" ] || [ "SmsEnable2" = "1" ]
+		then
+		/root/InterfaceManager/script/AddSMSCfg.sh $1 &
+ 
+		fi		
+	elif [ "${ACTION}" = "remove" ]
+	then
+		/root/InterfaceManager/script/CallUbusInterfaceManager.sh "disable" $1 &
+	fi
+}
+
+#Check for quectel modems.
+noofmodem=$(lsusb | grep -c "2c7c")
+
+ReadSystemConfigFile
+ReadSystemGpioFile
+
+date=$(date)
+
+if [ "$EnableCellular" != "1" ]
+then
+	exit 0
+fi
+
+#Delete all the CWANs during hotplug and recreate them.
+uci delete network.CWAN1 > /dev/null 2>&1
+uci delete network.CWAN1_0 > /dev/null 2>&1
+uci delete network.CWAN1_1 > /dev/null 2>&1
+uci delete network.wan6c1 > /dev/null 2>&1
+
+uci commit network
+
+#Checking if it's single/dual modem. Works for both xhci and usb.
+#Using grep on dmesg brings a lot of uncertainity, so it's easier to use lsusb to determine the number of modems.
+#noofmodem=$(dmesg | grep -c "usb-1e1c0000.*")
+
+#Check for quectel modems.
+#noofmodem=$(lsusb | grep -c "2c7c")
+
+uci set systemgpio.gpio.noofmodem=$noofmodem
+
+#dualmodule
+#if [ $noofmodem = "2" ]
+if [ "$CellularOperationModelocal" = "dualcellularsinglesim" ]
+then
+	cellularmodule="dualmodule"
+	echo $cellularmodule > /tmp/cellularmodule.txt
+	
+	echo "========================================================" >> $Logfile1
+	echo " " >> $Logfile1
+	echo "---------<23-CWAN-ADD>----------" >> $Logfile1
+	echo "<23-CWAN-ADD> Modems=$cellularmodule" >> $Logfile1
+	echo "<23-CWAN-ADD> CellularOperationMode=$CellularOperationModelocal" >> $Logfile1
+	
+	# Since it is dual module, extract the product IDs of both the modems.
+	idProduct=$(lsusb | grep "ID 2c7c" | awk '{print $6}' | cut -d ":" -f 2)
+	productId1=$(echo "$idProduct" | head -1)
+	productId2=$(echo "$idProduct" | tail -1)
+
+	#Find all files named idProduct under /sys/bus/usb/devices/*/, & search for the value of <idProduct_value> within each file,
+	#and outputs the file path(s) without the idProduct suffix.
+	#Ex- 
+	#/sys/bus/usb/devices/2-1
+	#/sys/bus/usb/devices/usb2/2-1
+	#Hence, we use head -1 to get - /sys/bus/usb/devices/2-1
+	usb_path1=$(find /sys/bus/usb/devices/*/ -name idProduct -type f -exec grep -l $productId1 {} \; | sed 's|/idProduct$||' | head -1)
+	usb_path2=$(find /sys/bus/usb/devices/*/ -name idProduct -type f -exec grep -l $productId2 {} \; | sed 's|/idProduct$||' | head -1)
+
+	#The ${usb_path##*/} expression extracts the characters after the last slash (/) in the string, leaving only devname ("1-1").
+	#Ex- 2-1
+	devname1="${usb_path1##*/}"
+	devname2="${usb_path2##*/}"
+	
+	#In the 1st hotplug script, use only 1-1 & 2-1 usb-path. Because, if used both then,
+	#both the modems get rebooted.
+	
+	if [ "$devname1" = "1-1" ] || [ "$devname1" = "2-1" ]
+	then
+		devname=$devname1
+		usb_path=$usb_path1
+		productId=$productId1
+		
+	elif [ "$devname2" = "1-1" ] || [ "$devname2" = "2-1" ]
+	then
+		devname=$devname2
+		usb_path=$usb_path2
+		productId=$productId2
+	fi
+	
+	echo "<23-CWAN-ADD> The productId is=$productId" >> $Logfile1
+	
+	#Get path in /sys/devices using readlink
+	#Ex- /sys/devices/platform/1e1c0000.xhci/usb2/2-1
+	path=$(readlink -f $usb_path)	
+
+	if [ "$devname" = "1-1" ]
+	then
+		echo "<23-CWAN-ADD> The devname is=$devname" >> $Logfile1
+		echo "<23-CWAN-ADD> The interface name is=CWAN1" >> $Logfile1
+		uci set modem.CWAN1.usbbuspath=$path
+		
+		#find the interface name from the usbpath
+		#We have to find "net" dir & then "ls" the net dir to get "ifname".
+		#Ex-
+		#net= /sys/devices/platform/1e1c0000.xhci/usb2/2-1/2-1:1.0/net
+		#ifname= usb1
+		net=$(find $path -name net -type d)
+		ifname=$(ls $net)
+		
+		uci set modem.CWAN1.ifname=$ifname
+		echo "<23-CWAN-ADD> The ifname is=$ifname" >> $Logfile1
+		
+		#find the device created in /dev if the modem is in qmi mode. That is, cdc-wdm
+		#Search for "usbmisc" in the path to find if it is qmi or not.
+		#If echo ${#usbmisc} is 0; then, it is cdc-ether.
+		#If echo ${#usbmisc} is greater than 0; then, it is qmi.
+		#This is to get "/dev/cdc-wdm0"
+		usbmisc=$(find $path -name usbmisc -type d)
+		if [ ${#usbmisc} -gt 0 ]
+		then
+			device=$(ls $usbmisc)
+			echo "<23-CWAN-ADD> For qmi, the device is=$device" >> $Logfile1
+			uci set modem.CWAN1.device=$device
+		fi
+		
+		#Add either CWAN1/CWAN2. Don't add both.
+		uci set modem.CWAN1_0.modemenable=0
+		uci set modem.CWAN1_1.modemenable=0
+		uci set modem.CWAN1.modemenable=1
+		uci commit modem
+
+		echo "<23-CWAN-ADD> modem.CWAN1.modemenable=1" >> $Logfile1
+		
+		prefix="CWAN1_"
+		CWAN1_0_Symlink
+		CWAN1_1_Symlink
+		
+		#/sys/devices/platform/1e1c0000.usb/usb1/1-1/1-1:1.0/ttyUSB0/tty/ttyUSB0 ... We get ttyUSB0 from here.
+		#devname=$(find $path1 -name ttyUSB* -path "$DEVPATH/*" | cut -d '/' -f 11)
+		
+		#SYMLINK="${prefix}$(echo -n ${devname} | tail -c 1)"
+		#ln -s /dev/${DEVNAME} /dev/${SYMLINK}
+		
+		#Create/delete Symlink 
+		Create_Delete_Symlink $path $prefix $ACTION
+		
+		if [ "$productId" = "0125" ]
+		then
+			echo "<23-CWAN-ADD> EC25E CWAN1" >> $Logfile1
+			EC25E CWAN1
+	
+		elif [ "$productId" = "6005" ]
+		then
+			echo "<23-CWAN-ADD> EC200A CWAN1" >> $Logfile1
+			EC200A CWAN1
+			
+		elif [ "$productId" = "0306" ]
+		then
+			echo "<23-CWAN-ADD> EM06 CWAN1" >> $Logfile1
+			EM06 CWAN1
+
+		elif [ "$productId" = "030e" ]
+		then
+			echo "<23-CWAN-ADD> EM05G CWAN1" >> $Logfile1
+			EM05G CWAN1
+		fi
+
+	elif [ "$devname" = "2-1" ]
+	then
+		echo "<23-CWAN-ADD> The devname is=$devname" >> $Logfile1
+		echo "<23-CWAN-ADD> The interface name is=CWAN1" >> $Logfile1
+		uci set modem.CWAN1.usbbuspath=$path
+		
+		#find the interface name from the usbpath
+		net=$(find $path -name net -type d)
+		ifname=$(ls $net)
+		
+		uci set modem.CWAN1.ifname=$ifname
+		echo "<23-CWAN-ADD> The ifname is=$ifname" >> $Logfile1
+		
+		#find the device created in /dev if the modem is in qmi mode. That is, cdc-wdm
+		usbmisc=$(find $path -name usbmisc -type d)
+		if [ ${#usbmisc} -gt 0 ]
+		then
+			device=$(ls $usbmisc)
+			echo "<23-CWAN-ADD> For qmi, the device is=$device" >> $Logfile1
+			uci set modem.CWAN1.device=$device
+		fi
+		
+		#Add either CWAN1/CWAN2. Don't add both.
+		uci set modem.CWAN1_0.modemenable=0
+		uci set modem.CWAN1_1.modemenable=0
+		uci set modem.CWAN1.modemenable=1
+		uci commit modem
+		
+		echo "<23-CWAN-ADD> modem.CWAN1.modemenable=1" >> $Logfile1
+		
+		prefix="CWAN1_"
+		CWAN1_0_Symlink
+		CWAN1_1_Symlink
+		
+		#Create/delete Symlink 
+		Create_Delete_Symlink $path $prefix $ACTION
+		
+		if [ "$productId" = "0800" ]
+		then
+			echo "<23-CWAN-ADD> RM500Q CWAN1" >> $Logfile1
+			RM500Q CWAN1
+	
+		elif [ "$productId" = "0900" ]
+		then
+			echo "<23-CWAN-ADD> RM500U CWAN1" >> $Logfile1
+			RM500U CWAN1
+		fi
+	fi
+	
+#singlemoduledualsim
+#elif [ $noofmodem = "1" ]
+elif [ "$CellularOperationModelocal" = "singlecellulardualsim" ]
+then
+	cellularmodule="singlemodule"
+	echo $cellularmodule > /tmp/cellularmodule.txt
+	
+	echo "========================================================" >> $Logfile1
+	echo " " >> $Logfile1
+	echo "---------<23-CWAN-ADD>----------" >> $Logfile1
+	echo "<23-CWAN-ADD> Modems=$cellularmodule" >> $Logfile1
+	echo "<23-CWAN-ADD> CellularOperationMode=$CellularOperationModelocal" >> $Logfile1
+	
+	#Check if there's only 1 module or if there are 2 but user wants to run only 1.
+	if [ $noofmodem != "1" ]
+	then
+		echo "<23-CWAN-ADD> noofmodem=$noofmodem" >> $Logfile1
+		idProduct=$(lsusb | grep "ID 2c7c" | awk '{print $6}' | cut -d ":" -f 2)
+		productId1=$(echo "$idProduct" | head -1)
+		productId2=$(echo "$idProduct" | tail -1)
+		
+		usb_path1=$(find /sys/bus/usb/devices/*/ -name idProduct -type f -exec grep -l $productId1 {} \; | sed 's|/idProduct$||' | head -1)
+		usb_path2=$(find /sys/bus/usb/devices/*/ -name idProduct -type f -exec grep -l $productId2 {} \; | sed 's|/idProduct$||' | head -1)
+
+		devname1="${usb_path1##*/}"
+		devname2="${usb_path2##*/}"
+		
+		if [ "$devname1" = "1-1" ] || [ "$devname1" = "2-1" ]
+		then
+			devname=$devname1
+			usb_path=$usb_path1
+			productId=$productId1
+		elif [ "$devname2" = "1-1" ] || [ "$devname2" = "2-1" ]
+		then
+			devname=$devname2
+			usb_path=$usb_path2
+			productId=$productId2
+		fi
+		
+		#Get path in /sys/devices using readlink
+		path=$(readlink -f $usb_path)	
+		
+	else
+		
+		echo "<23-CWAN-ADD> noofmodem=$noofmodem" >> $Logfile1
+		
+		# Since it is single module, extract the product ID of the modem.
+		idProduct=$(lsusb | grep "ID 2c7c" | awk '{print $6}' | cut -d ":" -f 2)
+		productId=$idProduct
+
+		#Find all files named idProduct under /sys/bus/usb/devices/*/, & search for the value of <idProduct_value> within each file,
+		#and outputs the file path(s) without the idProduct suffix.
+		usb_path=$(find /sys/bus/usb/devices/*/ -name idProduct -type f -exec grep -l $productId {} \; | sed 's|/idProduct$||' | head -1)
+
+		#The ${usb_path##*/} expression extracts the characters after the last slash (/) in the string, leaving only devname ("1-1").
+		devname="${usb_path##*/}"
+		
+		#Get path in /sys/devices using readlink	
+		path=$(readlink -f $usb_path)
+	fi
+		echo "<23-CWAN-ADD> The productId is=$productId" >> $Logfile1
+	
+	if [ "$devname" = "1-1" ]
+	then
+	
+		echo "<23-CWAN-ADD> The devname is=$devname" >> $Logfile1
+		echo "<23-CWAN-ADD> The interface name is=CWAN1_0 & CWAN1_1" >> $Logfile1
+	
+		uci set modem.CWAN1_0.usbbuspath=$path
+		uci set modem.CWAN1_1.usbbuspath=$path
+
+		#find the interface name from the usbpath
+		net=$(find $path -name net -type d)
+		ifname=$(ls $net)
+		uci set modem.CWAN1_0.ifname=$ifname
+		uci set modem.CWAN1_1.ifname=$ifname
+		
+		echo "<23-CWAN-ADD> The ifname is=$ifname" >> $Logfile1
+		
+		#find the device created in /dev if the modem is in qmi mode. That is, cdc-wdm
+		usbmisc=$(find $path -name usbmisc -type d)
+		if [ ${#usbmisc} -gt 0 ]
+		then
+			device=$(ls $usbmisc)
+			echo "<23-CWAN-ADD> For qmi, the device is=$device" >> $Logfile1
+			uci set modem.CWAN1_0.device=$device
+			uci set modem.CWAN1_1.device=$device
+		fi
+		
+		if [ ! -f "$SimNumFile" ]
+		then
+			
+			echo "<23-CWAN-ADD> No SimNumFile. So, create SimNumFile." >> $Logfile1
+			
+			touch "$SimNumFile"
+			echo "1" > "$SimNumFile"
+			uci set modem.CWAN1_0.modemenable=1
+			uci set modem.CWAN1_1.modemenable=0
+			uci set modem.CWAN1.modemenable=0
+			uci set modem.CWAN2.modemenable=0
+			uci commit modem
+			
+			echo "<23-CWAN-ADD> modem.CWAN1_0.modemenable=1" >> $Logfile1
+			
+			prefix="CWAN1_0_"
+			CWAN1_1_Symlink
+			CWAN1_Symlink
+			CWAN2_Symlink
+			
+			#Create/delete Symlink 
+			Create_Delete_Symlink $path $prefix $ACTION
+			
+			if [ "$productId" = "0125" ]
+			then
+				echo "<23-CWAN-ADD> EC25E CWAN1_0" >> $Logfile1
+				EC25E CWAN1_0
+		
+			elif [ "$productId" = "6005" ]
+			then
+				echo "<23-CWAN-ADD> EC200A CWAN1_0" >> $Logfile1
+				EC200A CWAN1_0
+				
+			elif [ "$productId" = "0306" ]
+			then
+				echo "<23-CWAN-ADD> EM06 CWAN1_0" >> $Logfile1
+				EM06 CWAN1_0
+			fi		
+
+		else
+			echo "<23-CWAN-ADD> SimNumFile Present" >> $Logfile1
+			sim=`cat "$SimNumFile"`
+			if [ "$sim" = "1" ]
+			then
+				uci set modem.CWAN1_0.modemenable=1
+				uci set modem.CWAN1_1.modemenable=0
+				uci set modem.CWAN1.modemenable=0
+				uci set modem.CWAN2.modemenable=0
+				uci commit modem
+				
+				echo "<23-CWAN-ADD> The value of SimNumFile is=$sim" >> $Logfile1
+				echo "<23-CWAN-ADD> modem.CWAN1_0.modemenable=1" >> $Logfile1
+				
+				prefix="CWAN1_0_"
+				CWAN1_1_Symlink
+				CWAN1_Symlink
+				CWAN2_Symlink
+				
+				#Create/delete Symlink 
+				Create_Delete_Symlink $path $prefix $ACTION
+				
+				if [ "$productId" = "0125" ]
+				then
+					echo "<23-CWAN-ADD> EC25E CWAN1_0" >> $Logfile1
+					EC25E CWAN1_0
+			
+				elif [ "$productId" = "6005" ]
+				then
+					echo "<23-CWAN-ADD> EC200A CWAN1_0" >> $Logfile1
+					EC200A CWAN1_0
+					
+				elif [ "$productId" = "0306" ]
+				then
+					echo "<23-CWAN-ADD> EM06 CWAN1_0" >> $Logfile1
+					EM06 CWAN1_0
+				fi	
+
+			else
+				echo "<23-CWAN-ADD> SimNumFile Present" >> $Logfile1
+				uci set modem.CWAN1_0.modemenable=0
+				uci set modem.CWAN1_1.modemenable=1
+				uci set modem.CWAN1.modemenable=0
+				uci set modem.CWAN2.modemenable=0
+				uci commit modem
+				
+				echo "<23-CWAN-ADD> The value of SimNumFile is=$sim" >> $Logfile1
+				echo "<23-CWAN-ADD> modem.CWAN1_1.modemenable=1" >> $Logfile1
+				
+				prefix="CWAN1_1_"
+				CWAN1_0_Symlink
+				CWAN1_Symlink
+				CWAN2_Symlink
+				
+				#Create/delete Symlink 
+				Create_Delete_Symlink $path $prefix $ACTION
+				
+				if [ "$productId" = "0125" ]
+				then
+					echo "<23-CWAN-ADD> EC25E CWAN1_1" >> $Logfile1
+					EC25E CWAN1_1
+			
+				elif [ "$productId" = "6005" ]
+				then
+					echo "<23-CWAN-ADD> EC200A CWAN1_1" >> $Logfile1
+					EC200A CWAN1_1
+					
+				elif [ "$productId" = "0306" ]
+				then
+					echo "<23-CWAN-ADD> EM06 CWAN1_1" >> $Logfile1
+					EM06 CWAN1_1
+				fi	
+				
+			fi
+		fi
+		
+	elif [ "$devname" = "2-1" ]
+	then
+		
+		echo "<23-CWAN-ADD> The devname is=$devname" >> $Logfile1
+		echo "<23-CWAN-ADD> The interface name is=CWAN1_0 & CWAN1_1" >> $Logfile11
+		
+		uci set modem.CWAN1_0.usbbuspath=$path
+		uci set modem.CWAN1_1.usbbuspath=$path
+		
+		#find the interface name from the usbpath
+		net=$(find $path -name net -type d)
+		ifname=$(ls $net)
+		uci set modem.CWAN1_0.ifname=$ifname
+		uci set modem.CWAN1_1.ifname=$ifname
+		echo "<23-CWAN-ADD> The ifname is=$ifname" >> $Logfile1
+		
+		#find the device created in /dev if the modem is in qmi mode. That is, cdc-wdm
+		usbmisc=$(find $path -name usbmisc -type d)
+		if [ ${#usbmisc} -gt 0 ]
+		then
+			device=$(ls $usbmisc)
+			uci set modem.CWAN1_0.device=$device
+			uci set modem.CWAN1_1.device=$device
+			echo "<23-CWAN-ADD> For qmi, the device is=$device" >> $Logfile1
+		fi
+		
+		if [ ! -f "$SimNumFile" ]
+		then
+			echo "<23-CWAN-ADD> No SimNumFile. So, create SimNumFile." >> $Logfile1
+			
+			touch "$SimNumFile"
+			echo "1" > "$SimNumFile"
+			uci set modem.CWAN1_0.modemenable=1
+			uci set modem.CWAN1_1.modemenable=0
+			uci set modem.CWAN1.modemenable=0
+			uci set modem.CWAN2.modemenable=0
+			uci commit modem
+			
+			echo "<23-CWAN-ADD> modem.CWAN1_0.modemenable=1" >> $Logfile1
+			
+			prefix="CWAN1_0_"
+			CWAN1_1_Symlink
+			CWAN1_Symlink
+			CWAN2_Symlink
+			
+			#Create/delete Symlink 
+			Create_Delete_Symlink $path $prefix $ACTION
+			
+			if [ "$productId" = "0800" ]
+			then
+				echo "<23-CWAN-ADD> RM500Q CWAN1_0" >> $Logfile1
+				RM500Q CWAN1_0
+		
+			elif [ "$productId" = "0900" ]
+			then
+				echo "<23-CWAN-ADD> RM500U CWAN1_0" >> $Logfile1
+				RM500U CWAN1_0
+			fi
+
+		else
+			echo "<23-CWAN-ADD> SimNumFile Present" >> $Logfile1
+			sim=`cat "$SimNumFile"`
+			if [ "$sim" = "1" ]
+			then
+				uci set modem.CWAN1_0.modemenable=1
+				uci set modem.CWAN1_1.modemenable=0
+				uci set modem.CWAN1.modemenable=0
+				uci set modem.CWAN2.modemenable=0
+				uci commit modem
+				
+				echo "<23-CWAN-ADD> The value of SimNumFile is=$sim" >> $Logfile1
+				echo "<23-CWAN-ADD> modem.CWAN1_0.modemenable=1" >> $Logfile1
+				
+				prefix="CWAN1_0_"
+				CWAN1_1_Symlink
+				CWAN1_Symlink
+				CWAN2_Symlink
+				
+				#Create/delete Symlink 
+				Create_Delete_Symlink $path $prefix $ACTION
+				
+				if [ "$productId" = "0800" ]
+				then
+					echo "<23-CWAN-ADD> RM500Q CWAN1_0" >> $Logfile1
+					RM500Q CWAN1_0
+			
+				elif [ "$productId" = "0900" ]
+				then
+					echo "<23-CWAN-ADD> RM500U CWAN1_0" >> $Logfile1
+					RM500U CWAN1_0
+				fi
+				
+			else
+				echo "<23-CWAN-ADD> SimNumFile Present" >> $Logfile1
+				uci set modem.CWAN1_0.modemenable=0
+				uci set modem.CWAN1_1.modemenable=1
+				uci set modem.CWAN1.modemenable=0
+				uci set modem.CWAN2.modemenable=0
+				uci commit modem
+				
+				echo "<23-CWAN-ADD> The value of SimNumFile is=$sim" >> $Logfile1
+				echo "<23-CWAN-ADD> modem.CWAN1_1.modemenable=1" >> $Logfile1
+				
+				prefix="CWAN1_1_"
+				CWAN1_0_Symlink
+				CWAN1_Symlink
+				CWAN2_Symlink
+				
+				#Create/delete Symlink 
+				Create_Delete_Symlink $path $prefix $ACTION
+				
+				if [ "$productId" = "0800" ]
+				then
+					echo "<23-CWAN-ADD> RM500Q CWAN1_1" >> $Logfile1
+					RM500Q CWAN1_1
+			
+				elif [ "$productId" = "0900" ]
+				then
+					echo "<23-CWAN-ADD> RM500U CWAN1_1" >> $Logfile1
+					RM500U CWAN1_1
+				fi
+			fi
+		fi
+	fi
+
+#singlecellularsinglesim	
+else
+	cellularmodule="singlemodule"
+	echo $cellularmodule > /tmp/cellularmodule.txt
+	
+	echo "========================================================" >> $Logfile1
+	echo " " >> $Logfile1
+	echo "---------<23-CWAN-ADD>----------" >> $Logfile1
+	echo "<23-CWAN-ADD> Modems=$cellularmodule" >> $Logfile1
+	echo "<23-CWAN-ADD> CellularOperationMode=$CellularOperationModelocal" >> $Logfile1
+	
+	#Check if there's only 1 module or if there are 2 but user wants to run only 1.
+	if [ $noofmodem != "1" ]
+	then
+		echo "<23-CWAN-ADD> noofmodem=$noofmodem" >> $Logfile1
+		
+		idProduct=$(lsusb | grep "ID 2c7c" | awk '{print $6}' | cut -d ":" -f 2)
+		productId1=$(echo "$idProduct" | head -1)
+		productId2=$(echo "$idProduct" | tail -1)
+		
+		usb_path1=$(find /sys/bus/usb/devices/*/ -name idProduct -type f -exec grep -l $productId1 {} \; | sed 's|/idProduct$||' | head -1)
+		usb_path2=$(find /sys/bus/usb/devices/*/ -name idProduct -type f -exec grep -l $productId2 {} \; | sed 's|/idProduct$||' | head -1)
+
+		devname1="${usb_path1##*/}"
+		devname2="${usb_path2##*/}"
+		
+		if [ "$devname1" = "1-1" ] || [ "$devname1" = "2-1" ]
+		then
+			devname=$devname1
+			usb_path=$usb_path1
+			productId=$productId1
+			
+		elif [ "$devname2" = "1-1" ] || [ "$devname2" = "2-1" ]
+		then
+			devname=$devname2
+			usb_path=$usb_path2
+			productId=$productId2
+		fi
+		
+		#Get path in /sys/devices using readlink
+		path=$(readlink -f $usb_path)
+			
+	else
+		# Since it is single module, extract the product ID of the modem.
+		idProduct=$(lsusb | grep "ID 2c7c" | awk '{print $6}' | cut -d ":" -f 2)
+		productId=$idProduct
+
+		#Find all files named idProduct under /sys/bus/usb/devices/*/, & search for the value of <idProduct_value> within each file,
+		#and outputs the file path(s) without the idProduct suffix.
+		usb_path=$(find /sys/bus/usb/devices/*/ -name idProduct -type f -exec grep -l $productId {} \; | sed 's|/idProduct$||' | head -1)
+
+		#The ${usb_path##*/} expression extracts the characters after the last slash (/) in the string, leaving only devname ("1-1").
+		devname="${usb_path##*/}"
+		
+		#Get path in /sys/devices using readlink
+		
+		path=$(readlink -f $usb_path)
+	fi	
+	
+	echo "<23-CWAN-ADD> The productId is=$productId" >> $Logfile1
+		
+	if [ "$devname" = "1-1" ]
+	then
+		echo "<23-CWAN-ADD> The devname is=$devname" >> $Logfile1
+		echo "<23-CWAN-ADD> The interface name is=CWAN1" >> $Logfile1
+		uci set modem.CWAN1.usbbuspath=$path
+		
+		#find the interface name from the usbpath
+		net=$(find $path -name net -type d)
+		ifname=$(ls $net)
+		
+		uci set modem.CWAN1.ifname=$ifname
+		echo "<23-CWAN-ADD> The ifname is=$ifname" >> $Logfile1
+		
+		#find the device created in /dev if the modem is in qmi mode. That is, cdc-wdm
+		usbmisc=$(find $path -name usbmisc -type d)
+		if [ ${#usbmisc} -gt 0 ]
+		then
+			device=$(ls $usbmisc)
+			echo "<23-CWAN-ADD> For qmi, the device is=$device" >> $Logfile1
+			uci set modem.CWAN1.device=$device
+		fi
+		
+		uci set modem.CWAN1_0.modemenable=0
+		uci set modem.CWAN1_1.modemenable=0
+		uci set modem.CWAN1.modemenable=1
+		uci set modem.CWAN2.modemenable=0
+		uci commit modem
+		
+		echo "<23-CWAN-ADD> modem.CWAN1.modemenable=1" >> $Logfile1
+		
+		prefix="CWAN1_"
+		CWAN1_1_Symlink
+		CWAN1_0_Symlink
+		CWAN2_Symlink
+		
+		#Create/delete Symlink 
+		Create_Delete_Symlink $path $prefix $ACTION
+		
+		if [ "$productId" = "0125" ]
+		then
+			echo "<23-CWAN-ADD> EC25E CWAN1" >> $Logfile1
+			EC25E CWAN1
+	
+		elif [ "$productId" = "6005" ]
+		then
+			echo "<23-CWAN-ADD> EC200A CWAN1" >> $Logfile1
+			EC200A CWAN1
+			
+		elif [ "$productId" = "0306" ]
+		then
+			echo "<23-CWAN-ADD> EM06 CWAN1" >> $Logfile1
+			EM06 CWAN1
+			
+		elif [ "$productId" = "030e" ]
+		then
+			echo "<23-CWAN-ADD> EM05G CWAN1" >> $Logfile1
+			EM05G CWAN1
+		fi
+		
+	elif [ "$devname" = "2-1" ]
+	then
+		echo "<23-CWAN-ADD> The devname is=$devname" >> $Logfile1
+		echo "<23-CWAN-ADD> The interface name is=CWAN1" >> $Logfile1
+		
+		uci set modem.CWAN1.usbbuspath=$path
+		
+		#find the interface name from the usbpath
+		net=$(find $path -name net -type d)
+		ifname=$(ls $net)
+		
+		uci set modem.CWAN1.ifname=$ifname
+		echo "<23-CWAN-ADD> The ifname is=$ifname" >> $Logfile1
+		
+		#find the device created in /dev if the modem is in qmi mode. That is, cdc-wdm
+		usbmisc=$(find $path -name usbmisc -type d)
+		if [ ${#usbmisc} -gt 0 ]
+		then
+			device=$(ls $usbmisc)
+			echo "<23-CWAN-ADD> For qmi, the device is=$device" >> $Logfile1
+			uci set modem.CWAN1.device=$device
+		fi
+		
+		uci set modem.CWAN1_0.modemenable=0
+		uci set modem.CWAN1_1.modemenable=0
+		uci set modem.CWAN1.modemenable=1
+		uci set modem.CWAN2.modemenable=0
+		uci commit modem
+		
+		echo "<23-CWAN-ADD> modem.CWAN1.modemenable=1" >> $Logfile1
+		
+		prefix="CWAN1_"
+		CWAN1_1_Symlink
+		CWAN1_0_Symlink
+		CWAN2_Symlink
+		
+		#Create/delete Symlink 
+		Create_Delete_Symlink $path $prefix $ACTION
+		
+		if [ "$productId" = "0800" ]
+		then
+			echo "<23-CWAN-ADD> RM500Q CWAN1" >> $Logfile1
+			RM500Q CWAN1
+			
+		elif [ "$productId" = "0900" ]
+		then
+			echo "<23-CWAN-ADD> RM500U CWAN1" >> $Logfile1
+			RM500U CWAN1
+		fi
+	fi
+fi	

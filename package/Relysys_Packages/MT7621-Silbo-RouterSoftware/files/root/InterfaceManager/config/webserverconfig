@@ -1,0 +1,8 @@
+
+config webserverconfig 'webserverconfig'
+	option port '80'
+	option enablentpsync '1'
+	option ntpserver '0.openwrt.pool.ntp.org'
+	option ntpsyncinterval '15'
+	option https_port '443'
+	option rfc1918_filter '1'

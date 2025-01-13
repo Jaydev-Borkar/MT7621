@@ -1,0 +1,5 @@
+
+config bgp_general 'general'
+
+config bgp_instance 'main_instance'
+

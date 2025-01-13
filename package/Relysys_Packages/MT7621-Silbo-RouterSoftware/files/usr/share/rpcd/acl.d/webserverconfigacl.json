@@ -1,0 +1,21 @@
+{
+    "webserverconfig": {
+        "description": "Webserver Configuration",
+            "read": {
+				"ubus" : {
+                "rpc-webserverConfig":[
+                "configure"        
+               ]
+            },
+                "uci": [
+                    "webserverconfig"
+                ]
+            },
+ 
+            "write": {
+                "uci": [
+                    "webserverconfig"
+                ]
+            }
+    }
+}

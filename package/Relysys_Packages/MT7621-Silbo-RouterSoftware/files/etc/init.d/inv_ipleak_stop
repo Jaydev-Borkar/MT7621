@@ -1,0 +1,60 @@
+#!/bin/sh /etc/rc.common
+
+START=19
+STOP=99
+
+wait_for_firstboot() {
+    for i in $(seq 1 5); do  # Loop for 5 seconds
+        if [ -f /etc/FirstBootStatus ]; then
+            source /etc/FirstBootStatus
+            if [ "$FirstBootStatus" = "0" ]; then
+                return 0
+            elif [ "$FirstBootStatus" = "1" ]; then
+                return 1
+            fi
+        fi
+        sleep 1
+    done
+	
+	# If the loop completes without finding "0", return 1
+    return 1  
+}
+
+retry_copy() {
+    src=$1
+    dest=$2
+    retries=5
+    delay=1
+
+    for i in $(seq 1 $retries); do
+        cp "$src" "$dest"
+        if [ $? -eq 0 ]; then
+            cmp -s "$src" "$dest"
+            if [ $? -eq 0 ]; then
+                return 0
+            fi
+        fi
+        sleep $delay
+    done
+    return 1
+}
+
+start() {
+
+	#If the FirstBootStatus=1, exit.
+	if [ $? -ne 0 ]; then
+        return 1
+    fi
+
+	# Replace the network configuration with the backup
+	retry_copy /etc/inv_eth/network_backup/network /etc/config/network
+	if [ $? -ne 0 ]; then
+		return 1
+	fi
+
+}
+
+stop() {
+    # Add stop logic if necessary
+    echo "inv_leak_stop script stopped."
+}

@@ -1,0 +1,4 @@
+
+config ospf_general 'general'
+
+config ospf_instance 'main_instance'

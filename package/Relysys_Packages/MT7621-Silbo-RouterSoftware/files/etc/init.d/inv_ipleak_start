@@ -1,0 +1,79 @@
+#!/bin/sh /etc/rc.common
+
+START=00
+STOP=99
+
+#If FirstBootStatus is 0, the function returns 0, allowing the script to proceed.
+#If FirstBootStatus is 1, the function returns 1, causing the script to exit.
+#If the file does not exist or has any other value, the function waits for 5 seconds. 
+#The 5 sec wait time is because if we wait indefinitely, then, firstboot script won't run.
+#In fact, none of the procd scripts (init) run, as inv_ipleak_start has run level of 0.
+
+wait_for_firstboot() {
+	# Loop for 5 seconds
+    for i in $(seq 1 5); do
+        if [ -f /etc/FirstBootStatus ]; then
+            source /etc/FirstBootStatus
+            if [ "$FirstBootStatus" = "0" ]; then
+                return 0
+            elif [ "$FirstBootStatus" = "1" ]; then
+                return 1
+            fi
+        fi
+        sleep 1
+    done
+	
+	# If the loop completes without finding "0", return 1
+	#This signifies either the /etc/FirstBootStatus file was not found or the file was empty.
+    return 1  
+}
+
+retry_copy() {
+    src=$1
+    dest=$2
+    retries=5
+    delay=1
+
+    for i in $(seq 1 $retries); do
+        cp "$src" "$dest"
+        if [ $? -eq 0 ]; then
+            cmp -s "$src" "$dest"
+            if [ $? -eq 0 ]; then
+                return 0
+            fi
+        fi
+        sleep $delay
+    done
+    return 1
+}
+
+start() {
+	
+	wait_for_firstboot
+	
+	#If the FirstBootStatus=1, exit.
+	if [ $? -ne 0 ]; then
+        return 1
+    fi
+	
+	# Create the backup directory if it does not exist
+	[ -d /etc/inv_eth/network_backup ] || mkdir -p /etc/inv_eth/network_backup
+
+	# Backup the existing network configuration
+	retry_copy /etc/config/network /etc/inv_eth/network_backup/network
+	if [ $? -ne 0 ]; then
+		return 1
+	fi
+
+	# Replace the network configuration with the single network configuration
+	retry_copy /etc/inv_eth/single_port/network /etc/config/network
+	if [ $? -ne 0 ]; then
+		return 1
+	fi
+
+}
+
+stop() {
+    # Add stop logic if necessary
+    echo "inv_leak_start script stopped."
+}

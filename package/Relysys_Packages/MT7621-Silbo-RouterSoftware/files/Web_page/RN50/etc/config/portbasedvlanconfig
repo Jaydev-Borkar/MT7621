@@ -1,0 +1,9 @@
+
+config redirect
+	option vlanid '1'
+	option port2 'untagged'
+
+config redirect
+	option vlanid '5'
+	option port1 'untagged'
+

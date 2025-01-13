@@ -1,0 +1,6 @@
+*/15 * * * * /root/InterfaceManager/script/TimeSync.sh
+*/2 * * * * /root/InterfaceManager/script/Check_Monitoring.sh
+*/1 * * * * /root/InterfaceManager/script/Update_Analytics_data.sh
+*/60 * * * * /bin/DeleteSMSFiles.sh
+*/10 * * * * /bin/Modem1RouterlocalPingApp.sh
+*/10 * * * * /bin/Modem2RouterlocalPingApp.sh

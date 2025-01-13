@@ -1,0 +1,24 @@
+{
+    "macbinding": {
+        "description": "Mac Address Binding",
+        "read": {
+			"ubus" : {
+                "rpc-updatemacbinding":[
+                "configure"
+                   
+                ]
+            },
+            "uci": [
+                "macbinding",
+                
+            ]
+            
+        },
+        "write": {
+            "uci": [
+               "macbinding",
+                
+            ]
+        }
+    }
+}

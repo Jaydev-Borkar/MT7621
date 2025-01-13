@@ -1,0 +1,44 @@
+#!/bin/sh
+
+. /usr/share/libubox/jshn.sh
+. /lib/functions.sh
+
+DeleteConfigScript="/root/InterfaceManager/script/Delete_Port_Based_VLAN.sh"
+UpdateConfigScript="/root/InterfaceManager/script/Port_Based_Vlan.sh"
+
+case "$1" in
+    list)
+      echo '{"configure":{},"delete":{}}'
+        ;;
+    call)
+        case "$2" in
+                     configure)
+                            response=$($UpdateConfigScript)
+							if [ "$?" -ne 0 ]
+                            then
+								echo "{\"code\":1,\"output\":\"FAILURE : Configuration not Updated\"}"
+                            else
+                               	echo "{\"code\":0,\"output\":\"SUCCESS : Configuration Updated\"}"
+                            fi
+                                                                                 
+                            ;;     
+                             
+                    delete)
+                            response=$($DeleteConfigScript)
+							if [ "$?" -ne 0 ]
+                            then
+								echo "{\"code\":1,\"output\":\"FAILURE : Configuration not Updated\"}"
+                            else
+                               	echo "{\"code\":0,\"output\":\"SUCCESS : Configuration Updated\"}"
+                            fi
+                                                                                 
+                            ;;                 
+                    *)
+                    echo '{"code":"1","output":"invalid method"}'
+                    exit 1
+                    ;;
+        esac #appmanager method
+        ;;
+esac # ubus method
+
+exit 0

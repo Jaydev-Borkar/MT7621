@@ -1,0 +1,7 @@
+
+config command 'appconfig'
+        option name 'APPLICATIONS'
+        option command '/etc/ReAP/ReAPMonit/script/Start_Stop_Apps'
+        option running '0'
+        option retain '0'
+

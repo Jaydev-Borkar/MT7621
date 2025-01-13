@@ -1,0 +1,8 @@
+
+config genericconfig 'general'
+	option enablepptp '0'
+	option enablezerotiergeneral '0'
+	option enablewireguardgeneral '0'
+	option enableopenvpngeneral '0'
+	option openvpnrunning '0'
+	option enableipsecgeneral '0'

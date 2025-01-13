@@ -1,0 +1,5 @@
+
+config genericonfig 'macconfig'
+	option name 
+	option macaddress 
+	option ipaddress 

@@ -1,0 +1,24 @@
+{
+    "queue": {
+        "description": "SQM",
+        "read": {
+			"ubus" : {
+                "rpc-updatesqm":[
+                "smartsqm"
+                   
+                ]
+            },
+            "uci": [
+                "sqm",
+                
+            ]
+            
+        },
+        "write": {
+            "uci": [
+               "sqm",
+                
+            ]
+        }
+    }
+}

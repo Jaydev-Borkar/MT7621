@@ -1,0 +1,22 @@
+
+config genericconfig 'general'
+	option enableopenvpngeneral '1'
+	option enablepptp '1'
+	option enableipsecgeneral '1'
+	option openvpnrunning '1'
+
+config pptp 'pptp'
+	option pptpserver 'PL226.vpnbook.com'
+	option pptpuser 'vpnbook'
+	option pptppassword '4dK5esN'
+
+config urlipconfig
+	option EEnable '0'
+	option RS485ConfigSectionName '/www.xyz.com/'
+	option Enable '1'
+
+config urlipconfig
+	option EEnable '0'
+	option RS485ConfigSectionName '/www.abc.com/'
+	option Enable '0'
+

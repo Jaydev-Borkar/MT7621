@@ -1,0 +1,43 @@
+config global 
+	option networkModeLed '1'
+	option signalStrengthLed '1'
+	option numberOfModems '1'
+	option numberOfLimits '2'
+	
+config gpio 'modem1'
+	option signalStrengthIndicatorType 'rgled'
+	option signalStrengthLedOnValue '0'
+	option signalStrengthLedOffValue '1'	
+	option signalStrengthRedLed '408'
+	option signalStrengthGreenLed '409'
+	option networkModeIndicatorType 'rgled'
+	#option highestNetworkMode '4g'
+	option networkModeLedOnValue '0'
+	option networkModeLedOffValue '1'	
+	option networkModeRedLed '406'
+	option networkModeGreenLed '407'
+		
+config networkMode 'networkMode'
+	option highestNetworkMode '5g'
+	option SA '5g'
+	option NSA '5g'
+	option LTE '4g'
+	option EDGE '3g'
+	option GPRS '2g'
+	option CDMA '2g'
+	
+config limit '5g'
+	option limit1 '-115'
+	option limit2 '-95'
+
+config limit '4g'
+	option limit1 '-115'
+	option limit2 '-95'
+
+config limit '3g'
+	option limit1 '-100'
+	option limit2 '-70'
+	
+config limit '2g'
+	option limit1 '-100'
+	option limit2 '-70'

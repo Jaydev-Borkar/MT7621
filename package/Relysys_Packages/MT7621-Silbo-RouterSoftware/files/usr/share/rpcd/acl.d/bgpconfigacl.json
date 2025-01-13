@@ -1,0 +1,31 @@
+{
+    "bgpconfig": {
+        "description": "BGP",
+        "read": {
+			"ubus" : {
+                "rpc-updatebgpconfig":[
+                "configure"
+                   
+                ],
+                
+                 "rpc-updatebgpstatus":[
+                "configure"
+                   
+                ],
+            },
+            "uci": [
+                "bgpconfig",
+                
+                
+            ]
+            
+        },
+        "write": {
+            "uci": [
+               "bgpconfig",
+             
+                
+            ]
+        }
+    }
+}
